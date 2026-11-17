@@ -10,6 +10,7 @@ Este repositorio constituye una implementación práctica de un ciclo de vida de
 
 El objetivo principal es reducir la superficie de ataque desde etapas tempranas (*Shift-Left*) y garantizar la integridad de la cadena de suministro de software antes de cualquier despliegue a producción, alineándose con estándares corporativos de cumplimiento.
 
+
 ---
 ## 📂 Estructura del Repositorio
 
