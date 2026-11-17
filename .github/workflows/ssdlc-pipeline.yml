@@ -1,4 +1,31 @@
-paso-2-sca-sbom:
+name: "SSDLC Quality Gate - SAST -> SCA/SBOM -> Secretos"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  paso-1-sast:
+    name: "1. SAST (CodeQL)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+  paso-2-sca-sbom:
     name: "2. SCA & SBOM (Trivy)"
     runs-on: ubuntu-latest
     needs: paso-1-sast
