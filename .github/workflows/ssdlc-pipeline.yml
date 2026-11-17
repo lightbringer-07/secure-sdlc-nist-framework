@@ -19,23 +19,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar y ejecutar Semgrep CLI
+      - name: Instalar y ejecutar Semgrep CLI (JSON base)
         run: |
           pip install semgrep
-          # Ejecutamos semgrep scan en modo completo forzando error si encuentra hallazgos
-          semgrep scan --config "p/security-audit" --error
+          semgrep scan --config "p/security-audit" --json --output semgrep-results.json
 
-      - name: Publicar resultado SAST (Si falla)
-        if: failure()
+      - name: Publicar tabla SAST en el Summary
         run: |
-          echo "### ❌ 1. Alertas críticas detectadas en el Análisis SAST" >> $GITHUB_STEP_SUMMARY
-          echo "El Quality Gate ha bloqueado el despliegue debido a vulnerabilidades de seguridad críticas." >> $GITHUB_STEP_SUMMARY
-
-      - name: Publicar resultado SAST (Si pasa)
-        if: success()
-        run: |
-          echo "### 🔍 1. Resultados SAST (Semgrep)" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Análisis estático completado sin errores de seguridad." >> $GITHUB_STEP_SUMMARY
+          COUNT=$(jq '.results | length' semgrep-results.json)
+          echo "### 🔍 1. Resultados SAST - Análisis Estático (Semgrep)" >> $GITHUB_STEP_SUMMARY
+          if [ "$COUNT" -gt 0 ]; then
+            echo "| Regla Detectada | Severidad | Archivo | Línea |" >> $GITHUB_STEP_SUMMARY
+            echo "| :--- | :---: | :--- | :---: |" >> $GITHUB_STEP_SUMMARY
+            jq -r '.results[] | "| **\(.check_id | split(".") | last)** | \(.extra.severity) | `\(.path)` | \(.start.line) |"' semgrep-results.json >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Quality Gate bloqueado:** Se detectaron $COUNT vulnerabilidades en el código fuente." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ Análisis estático completado sin errores de seguridad." >> $GITHUB_STEP_SUMMARY
+          fi
 
   paso-2-sca-sbom:
     name: "2. SCA & SBOM (Trivy)"
