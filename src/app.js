@@ -72,18 +72,28 @@ app.get('/api/v1/invoices/download', (req, res) => {
 });
 
 // =========================================================================
-// 4. SERVER-SIDE REQUEST FORGERY - SSRF (Validación de esquemas/URL)
+// 4. SERVER-SIDE REQUEST FORGERY - SSRF (Validación de esquemas y allowlist)
 // =========================================================================
+const ALLOWED_WEBHOOK_HOSTS = new Map([
+  ['api.comercio-aliado.com', 'https://api.comercio-aliado.com'],
+  ['webhooks.fintech-sandbox.com', 'https://webhooks.fintech-sandbox.com']
+]);
+
 app.post('/api/v1/payments/webhook-verify', async (req, res) => {
   const merchantCallbackUrl = req.body.url;
   
   try {
     const parsedUrl = new URL(merchantCallbackUrl);
-    if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
-      return res.status(400).json({ error: 'Esquema de URL no permitido' });
+    if (parsedUrl.protocol !== 'https:') {
+      return res.status(400).json({ error: 'Solo se permiten conexiones HTTPS' });
     }
 
-    const response = await axios.get(merchantCallbackUrl);
+    const baseOrigin = ALLOWED_WEBHOOK_HOSTS.get(parsedUrl.hostname);
+    if (!baseOrigin) {
+      return res.status(403).json({ error: 'Dominio de webhook no autorizado en la lista blanca' });
+    }
+
+    const response = await axios.get(`${baseOrigin}/webhook/status`);
     res.json({ status: 'Webhook de comercio activo', data: response.data });
   } catch (error) {
     res.status(400).json({ error: 'URL inválida o no se pudo contactar el endpoint' });
@@ -109,16 +119,4 @@ app.post('/api/v1/microcredits/simulate', (req, res) => {
     return res.status(400).json({ error: 'Parámetros numéricos inválidos para la simulación' });
   }
 
-  const installment = (principal * (1 + rate / 100)) / months;
-  res.json({ cuotaCalculada: installment });
-});
-
-app.get('/health', (req, res) => {
-  const token = jwt.sign({ service: 'fintech-payments-api' }, JWT_SIGNING_SECRET, { expiresIn: '1h' });
-  res.json({ status: 'UP', sessionToken: token });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Fintech Payments API ejecutándose en el puerto ${PORT}`);
-});
+  const installment
