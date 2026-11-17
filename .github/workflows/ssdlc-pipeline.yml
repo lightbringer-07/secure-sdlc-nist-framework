@@ -24,7 +24,7 @@ paso-1-sast:
           CODEQL_ACTION_DIFF_INFORMED_QUERIES: false
         with:
           languages: javascript-typescript
-          build-mode: none   # <-- ESTA LÍNEA SOLucIONA EL ERROR 32 EN JS
+          build-mode: none
 
       - uses: github/codeql-action/analyze@v4
         env:
