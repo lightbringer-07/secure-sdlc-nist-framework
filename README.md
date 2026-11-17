@@ -98,4 +98,4 @@ Para auditar en tiempo real los hallazgos generados por el pipeline, navega dire
 ---
 
 ## 👤 Autor
-* **José Villanueva** - *Cybersecurity Specialist & DevSecOps Focal Point*
+* **José Villanueva** - *Cybersecurity Specialist
