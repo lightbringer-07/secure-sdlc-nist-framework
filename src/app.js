@@ -8,7 +8,7 @@ const _ = require('lodash');
 
 const app = express();
 app.use(express.json());
-
+//test
 // =========================================================================
 // 1. EXPOSICIÓN DE SECRETOS (Detección por Gitleaks / GitHub Secret Scanning)
 // =========================================================================
