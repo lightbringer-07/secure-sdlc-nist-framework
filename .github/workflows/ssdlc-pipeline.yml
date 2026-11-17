@@ -31,7 +31,7 @@ jobs:
         run: |
           echo "### 🔍 1. Resultados SAST (Semgrep)" >> $GITHUB_STEP_SUMMARY
           echo "✅ Análisis estático completado sin errores de compilación." >> $GITHUB_STEP_SUMMARY
-          fi
+  
 
   paso-2-sca-sbom:
     name: "2. SCA & SBOM (Trivy)"
