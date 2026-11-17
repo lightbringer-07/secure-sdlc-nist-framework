@@ -12,6 +12,6 @@
     "axios": "^1.7.4",
     "jsonwebtoken": "^9.0.2",
     "minimist": "^1.2.8",
-    "serialize-javascript": "^6.0.2"
+    "serialize-javascript": "^7.0.3"
   }
 }
