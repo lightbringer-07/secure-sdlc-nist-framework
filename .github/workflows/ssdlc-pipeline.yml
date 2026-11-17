@@ -1,35 +1,10 @@
-name: "SSDLC Quality Gate - SAST -> SCA/SBOM -> Secretos"
-
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  security-events: write
-  actions: read
-
-jobs:
-  paso-1-sast:
-    name: "1. SAST (CodeQL)"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
-      - uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:javascript-typescript"
-
-  paso-2-sca-sbom:
+paso-2-sca-sbom:
     name: "2. SCA & SBOM (Trivy)"
     runs-on: ubuntu-latest
     needs: paso-1-sast
     if: always()
+    outputs:
+      vuln_count: ${{ steps.eval_sca.outputs.vuln_count }}
     steps:
       - uses: actions/checkout@v4
 
@@ -41,6 +16,7 @@ jobs:
         with:
           scan-type: 'fs'
           scan-ref: '.'
+          scanners: 'vuln'
           format: 'sarif'
           output: 'trivy-sca.sarif'
           severity: 'CRITICAL,HIGH'
@@ -66,25 +42,81 @@ jobs:
           name: sbom-fintech-cyclonedx
           path: sbom-cyclonedx.json
 
-      - name: Quality Gate SCA (Bloquea si hay CRITICAL o HIGH)
+      - name: Generar reporte JSON SCA sin bloquear aún
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
-          format: 'table'
+          scanners: 'vuln'
+          format: 'json'
+          output: 'trivy-results.json'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'
+          exit-code: '0'
+
+      - name: Contar vulnerabilidades SCA
+        id: eval_sca
+        run: |
+          COUNT=$(jq '[.Results[]?.Vulnerabilities[]?] | length' trivy-results.json)
+          echo "vuln_count=$COUNT" >> $GITHUB_OUTPUT
+          echo "Total CVEs CRITICAL/HIGH detectados por Trivy: $COUNT"
 
   paso-3-secretos:
     name: "3. Secretos (Gitleaks)"
     runs-on: ubuntu-latest
     needs: paso-2-sca-sbom
     if: always()
+    outputs:
+      secrets_count: ${{ steps.eval_secrets.outputs.secrets_count }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Escanear todo el repositorio con Gitleaks
+      - name: Escanear todos los secretos con reglas nativas
         run: |
-          docker run --rm -v "${{ github.workspace }}:/path" zricethezav/gitleaks:latest detect --source="/path" --verbose
+          docker run --rm -v "${{ github.workspace }}:/path" zricethezav/gitleaks:latest detect \
+            --source="/path" \
+            --report-format="json" \
+            --report-path="/path/gitleaks-report.json" \
+            --exit-code=0 \
+            --verbose
+
+      - name: Contar secretos detectados
+        id: eval_secrets
+        run: |
+          COUNT=$(jq 'length' gitleaks-report.json)
+          echo "secrets_count=$COUNT" >> $GITHUB_OUTPUT
+          echo "Total de secretos detectados por Gitleaks: $COUNT"
+
+  paso-4-quality-gate:
+    name: "4. Quality Gate Final (NIST SSDF)"
+    runs-on: ubuntu-latest
+    needs: [paso-1-sast, paso-2-sca-sbom, paso-3-secretos]
+    if: always()
+    steps:
+      - name: Contar alertas abiertas de SAST (CodeQL)
+        id: eval_sast
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SAST_COUNT=$(gh api /repos/${{ github.repository }}/code-scanning/alerts?state=open \
+            --jq '[.[] | select(.tool.name=="CodeQL" and (.rule.security_severity_level=="critical" or .rule.security_severity_level=="high"))] | length')
+          echo "sast_count=$SAST_COUNT" >> $GITHUB_OUTPUT
+          echo "Total de alertas CRITICAL/HIGH detectadas por CodeQL: $SAST_COUNT"
+
+      - name: Evaluar políticas de seguridad consolidadas
+        run: |
+          SAST=${{ steps.eval_sast.outputs.sast_count }}
+          VULNS=${{ needs.paso-2-sca-sbom.outputs.vuln_count }}
+          SECRETS=${{ needs.paso-3-secretos.outputs.secrets_count }}
+          echo "======================================================="
+          echo "RESUMEN FINAL DEL PIPELINE SSDLC (NIST SP 800-218)"
+          echo " - Hallazgos SAST CRITICAL/HIGH (CodeQL):   $SAST"
+          echo " - CVEs SCA CRITICAL/HIGH (Trivy):          $VULNS"
+          echo " - Secretos Expuestos (Gitleaks):           $SECRETS"
+          echo "======================================================="
+          if [ "$SAST" -gt 0 ] || [ "$VULNS" -gt 0 ] || [ "$SECRETS" -gt 0 ]; then
+            echo "❌ QUALITY GATE FALLIDO: Se detectaron $SAST hallazgos SAST, $VULNS CVEs SCA y $SECRETS secretos."
+            exit 1
+          fi
+          echo "✅ QUALITY GATE APROBADO: Código limpio."

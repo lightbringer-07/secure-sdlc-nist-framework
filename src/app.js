@@ -12,9 +12,9 @@ app.use(express.json());
 // =========================================================================
 // 1. EXPOSICIÓN DE SECRETOS (Detección por Gitleaks / GitHub Secret Scanning)
 // =========================================================================
-const AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE";
+const AWS_ACCESS_KEY_ID = "AKIA47CR9X8P2M5L7Q1Z";
 const STRIPE_LIVE_SECRET = "sk_live_51MockKeyForDevSecOpsTesting998877";
-const JWT_SIGNING_SECRET = "super-secret-fintech-wallet-key-2026";
+const GITHUB_INTEGRATION_TOKEN = "ghp_9xK2mP7vL4nQ8wR5tY1zB6cF3jH0dS2aE4uI";
 
 // =========================================================================
 // 2. INYECCIÓN DE COMANDOS - OS Command Injection (CWE-78)
