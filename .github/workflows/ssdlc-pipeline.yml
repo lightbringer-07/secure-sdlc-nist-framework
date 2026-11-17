@@ -13,25 +13,29 @@ permissions:
   actions: read
 
 jobs:
-  paso-1-sast:
+ paso-1-sast:
     name: "1. SAST (Semgrep)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Ejecutar análisis estático con Semgrep
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: "p/default"
-          generate-sarif: "true"
-          sarif_file: "semgrep.sarif"
+      - name: Instalar y ejecutar Semgrep CLI
+        run: |
+          pip install semgrep
+          # Ejecutamos semgrep scan en modo completo forzando error si encuentra hallazgos
+          semgrep scan --config "p/security-audit" --error
 
-      - name: Publicar resultado SAST
-        if: always()
+      - name: Publicar resultado SAST (Si falla)
+        if: failure()
+        run: |
+          echo "### ❌ 1. Alertas críticas detectadas en el Análisis SAST" >> $GITHUB_STEP_SUMMARY
+          echo "El Quality Gate ha bloqueado el despliegue debido a vulnerabilidades de seguridad críticas." >> $GITHUB_STEP_SUMMARY
+
+      - name: Publicar resultado SAST (Si pasa)
+        if: success()
         run: |
           echo "### 🔍 1. Resultados SAST (Semgrep)" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Análisis estático completado sin errores de compilación." >> $GITHUB_STEP_SUMMARY
-  
+          echo "✅ Análisis estático completado sin errores de seguridad." >> $GITHUB_STEP_SUMMARY
 
   paso-2-sca-sbom:
     name: "2. SCA & SBOM (Trivy)"
