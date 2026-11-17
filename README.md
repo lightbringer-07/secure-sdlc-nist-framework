@@ -81,12 +81,25 @@ Alineado con los dominios **PO.1.2 / PO.3.2** y **PS.1.1** del NIST SSDF, la ram
 
 ## 📸 Telemetría del Pipeline y Evidencia de Auditoría
 
-### Ejecución de Quality Gates y Resumen de Hallazgos
-Evidencia del bloqueo preventivo de Pull Requests ante detección de dependencias vulnerables (`HIGH`) y credenciales expuestas en el código fuente:
+### 1. Ejecución de Quality Gates y Resumen de Hallazgos (`$GITHUB_STEP_SUMMARY`)
+Evidencia del análisis automatizado y bloqueo preventivo ante detección de dependencias vulnerables (`HIGH`) y credenciales expuestas en el código fuente:
 
 <img width="607" height="279" alt="image" src="https://github.com/user-attachments/assets/b5277bdb-4e64-43cb-9420-c3ee25ca6292" />
 <img width="600" height="588" alt="image" src="https://github.com/user-attachments/assets/e5e4b49b-637b-4f5f-a7b0-a331ab8766be" />
 <img width="409" height="139" alt="image" src="https://github.com/user-attachments/assets/0a515b6b-e51a-47a1-9f70-f0e9a04860e3" />
+
+### 2. Gobernanza y Control de Merge en Pull Requests (NIST PO.1.2 / PS.1.1)
+Validación de las reglas de protección de rama (`Required` checks): bloqueo preventivo del botón *Merge* mientras los controles evalúan el cambio y habilitación automática tras aprobar sin hallazgos críticos:
+
+<img width="496" height="451" alt="image" src="https://github.com/user-attachments/assets/46e357bd-a792-417d-ab35-6843d36c47fa" />
+
+### 3. Aprobación Final y Ejecución Limpia del Pipeline (`All checks have passed`)
+Una vez remediados los hallazgos, los 3 *jobs* secuenciales (`CodeQL`, `Trivy` y `Gitleaks`) completan en verde y GitHub habilita automáticamente la fusión hacia `main`:
+
+<img width="731" height="225" alt="image" src="https://github.com/user-attachments/assets/a5143016-8b03-41dd-a672-f66f678416a2" />
+<img width="510" height="271" alt="image" src="https://github.com/user-attachments/assets/fe5a98e8-69e5-4d32-8551-60cff3626e27" />
+
+
 
 
 
@@ -98,4 +111,4 @@ Para auditar en tiempo real los hallazgos generados por el pipeline, navega dire
 ---
 
 ## 👤 Autor
-* **José Villanueva** - *Cybersecurity Specialist
+* **José Villanueva** - Cybersecurity Specialist
