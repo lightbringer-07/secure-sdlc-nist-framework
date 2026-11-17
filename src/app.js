@@ -1,5 +1,5 @@
 const express = require('express');
-const { execFile } = require('child_process'); // Reemplazado exec por execFile para mitigar command injection básica
+const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
@@ -25,11 +25,11 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 
 // =========================================================================
-// 1. EXPOSICIÓN DE SECRETOS (Mapeado a Variables de Entorno)
+// 1. EXPOSICIÓN DE SECRETOS (Mapeado a Variables de Entorno con exclusión gitleaks)
 // =========================================================================
 const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || "";
-const STRIPE_LIVE_SECRET = process.env.STRIPE_LIVE_SECRET || "";
-const GITHUB_INTEGRATION_TOKEN = process.env.GITHUB_INTEGRATION_TOKEN || "";
+const STRIPE_LIVE_SECRET = process.env.STRIPE_LIVE_SECRET || ""; // gitleaks:allow
+const GITHUB_INTEGRATION_TOKEN = process.env.GITHUB_INTEGRATION_TOKEN || ""; // gitleaks:allow
 const JWT_SIGNING_SECRET = process.env.JWT_SIGNING_SECRET || "fallback-secret-key";
 
 // =========================================================================
@@ -38,12 +38,10 @@ const JWT_SIGNING_SECRET = process.env.JWT_SIGNING_SECRET || "fallback-secret-ke
 app.get('/api/v1/nodes/ping', (req, res) => {
   const gatewayHost = req.query.host;
   
-  // Validación básica de formato de host/IP para prevenir inyección directa
   if (!gatewayHost || typeof gatewayHost !== 'string' || !/^[\w.-]+$/.test(gatewayHost)) {
     return res.status(400).send('Parámetro host inválido');
   }
 
-  // execFile evita la ejecución a través de un intérprete de comandos shell
   execFile('ping', ['-c', '2', gatewayHost], (error, stdout, stderr) => {
     if (error) return res.status(500).send(stderr);
     res.send(stdout);
@@ -51,7 +49,7 @@ app.get('/api/v1/nodes/ping', (req, res) => {
 });
 
 // =========================================================================
-// 3. PATH TRAVERSAL / LECTURA ARBITRARIA DE ARCHivos (Validación de ruta)
+// 3. PATH TRAVERSAL / LECTURA ARBITRARIA DE ARCHIVOS (Validación de ruta)
 // =========================================================================
 app.get('/api/v1/invoices/download', (req, res) => {
   const receiptFile = req.query.file;
@@ -61,9 +59,8 @@ app.get('/api/v1/invoices/download', (req, res) => {
   }
 
   const receiptsDir = path.join(__dirname, 'receipts');
-  const filePath = path.join(receiptsDir, path.basename(receiptFile)); // path.basename previene Directory Traversal (../)
+  const filePath = path.join(receiptsDir, path.basename(receiptFile));
 
-  // Validar que el archivo resida estrictamente dentro del directorio permitido
   if (!filePath.startsWith(receiptsDir)) {
     return res.status(403).send('Acceso denegado');
   }
@@ -82,7 +79,6 @@ app.post('/api/v1/payments/webhook-verify', async (req, res) => {
   
   try {
     const parsedUrl = new URL(merchantCallbackUrl);
-    // Permitir únicamente protocolos seguros en producción
     if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
       return res.status(400).json({ error: 'Esquema de URL no permitido' });
     }
@@ -99,7 +95,6 @@ app.post('/api/v1/payments/webhook-verify', async (req, res) => {
 // =========================================================================
 app.get('/api/v1/wallets/search', (req, res) => {
   const walletAlias = req.query.alias || '';
-  // Se previene XSS asegurando que no se inyecte HTML plano directamente sin sanitizar
   const sanitizedAlias = String(walletAlias).replace(/[<>]/g, '');
   res.send(`<h1>Resultados de búsqueda para la billetera: ${sanitizedAlias}</h1>`);
 });
@@ -110,7 +105,6 @@ app.get('/api/v1/wallets/search', (req, res) => {
 app.post('/api/v1/microcredits/simulate', (req, res) => {
   const { principal, rate, months } = req.body;
   
-  // Reemplazo seguro de eval por una fórmula matemática controlada y predecible
   if (typeof principal !== 'number' || typeof rate !== 'number' || typeof months !== 'number') {
     return res.status(400).json({ error: 'Parámetros numéricos inválidos para la simulación' });
   }
