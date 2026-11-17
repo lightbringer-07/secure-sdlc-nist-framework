@@ -30,14 +30,14 @@ jobs:
 
       - name: Publicar tabla SAST en el Summary
         run: |
-          SARIF_FILE=$(find codeql-results -name "*.sarif" | head -n 1)
-          COUNT=$(jq '[.runs[0].results[]?] | length' "$SARIF_FILE")
+          jq -s '[.[].runs[]?.results[]?]' codeql-results/*.sarif > parsed-sast.json
+          COUNT=$(jq 'length' parsed-sast.json)
 
           echo "### 🔍 1. Resultados SAST - Análisis Estático (CodeQL)" >> $GITHUB_STEP_SUMMARY
           if [ "$COUNT" -gt 0 ]; then
             echo "| Regla / CWE | Nivel | Archivo | Línea |" >> $GITHUB_STEP_SUMMARY
             echo "| :--- | :---: | :--- | :---: |" >> $GITHUB_STEP_SUMMARY
-            jq -r '.runs[0].results[]? | "| **\(.message.text | gsub("\n"; " "))** (`\(.ruleId)`) | \(.level | ascii_upcase) | `\(.locations[0].physicalLocation.artifactLocation.uri)` | \(.locations[0].physicalLocation.region.startLine) |"' "$SARIF_FILE" >> $GITHUB_STEP_SUMMARY
+            jq -r '.[] | "| **\(.message.text | gsub("\n"; " "))** (`\(.ruleId)`) | \(.level // "warning" | ascii_upcase) | `\(.locations[0].physicalLocation.artifactLocation.uri)` | \(.locations[0].physicalLocation.region.startLine) |"' parsed-sast.json >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             exit 1
           else
