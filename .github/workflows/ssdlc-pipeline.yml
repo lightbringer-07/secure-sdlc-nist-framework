@@ -26,23 +26,22 @@ jobs:
       - uses: github/codeql-action/analyze@v3
         with:
           category: "/language:javascript-typescript"
+          output: codeql-results
 
       - name: Publicar tabla SAST en el Summary
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh api /repos/${{ github.repository }}/code-scanning/alerts?state=open > sast-alerts.json || echo "[]" > sast-alerts.json
-          COUNT=$(jq '[.[] | select(.tool.name=="CodeQL" and (.rule.security_severity_level=="critical" or .rule.security_severity_level=="high"))] | length' sast-alerts.json)
+          SARIF_FILE=$(find codeql-results -name "*.sarif" | head -n 1)
+          COUNT=$(jq '[.runs[0].results[]?] | length' "$SARIF_FILE")
 
           echo "### 🔍 1. Resultados SAST - Análisis Estático (CodeQL)" >> $GITHUB_STEP_SUMMARY
           if [ "$COUNT" -gt 0 ]; then
-            echo "| Regla / CWE | Severidad | Archivo | Línea |" >> $GITHUB_STEP_SUMMARY
+            echo "| Regla / CWE | Nivel | Archivo | Línea |" >> $GITHUB_STEP_SUMMARY
             echo "| :--- | :---: | :--- | :---: |" >> $GITHUB_STEP_SUMMARY
-            jq -r '.[] | select(.tool.name=="CodeQL" and (.rule.security_severity_level=="critical" or .rule.security_severity_level=="high")) | "| **\(.rule.description)** (`\(.rule.id)`) | \(.rule.security_severity_level | ascii_upcase) | `\(.most_recent_instance.location.path)` | \(.most_recent_instance.location.start_line) |"' sast-alerts.json >> $GITHUB_STEP_SUMMARY
+            jq -r '.runs[0].results[]? | "| **\(.message.text | gsub("\n"; " "))** (`\(.ruleId)`) | \(.level | ascii_upcase) | `\(.locations[0].physicalLocation.artifactLocation.uri)` | \(.locations[0].physicalLocation.region.startLine) |"' "$SARIF_FILE" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             exit 1
           else
-            echo "✅ No se detectaron vulnerabilidades CRITICAL o HIGH en el código fuente." >> $GITHUB_STEP_SUMMARY
+            echo "✅ No se detectaron vulnerabilidades en el código fuente." >> $GITHUB_STEP_SUMMARY
           fi
 
   paso-2-sca-sbom:
