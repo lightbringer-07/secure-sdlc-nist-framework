@@ -119,6 +119,7 @@ jobs:
         run: |
           docker run --rm -v "${{ github.workspace }}:/path" zricethezav/gitleaks:latest detect \
             --source="/path" \
+            --no-git \
             --report-format="json" \
             --report-path="/path/gitleaks-report.json" \
             --exit-code=0 \
