@@ -5,9 +5,17 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const _ = require('lodash');
+const sqlite3 = require('sqlite3').verbose();
 
 const app = express();
 app.use(express.json());
+
+// Base de datos SQLite en memoria para pruebas de SQL Injection
+const db = new sqlite3.Database(':memory:');
+db.serialize(() => {
+  db.run("CREATE TABLE accounts (id INT, account_number TEXT, balance REAL)");
+  db.run("INSERT INTO accounts VALUES (1, 'ACC-1001', 5000.00)");
+});
 
 // =========================================================================
 // 1. EXPOSICIÓN DE SECRETOS (Detección por Gitleaks / GitHub Secret Scanning)
@@ -67,6 +75,21 @@ app.post('/api/v1/microcredits/simulate', (req, res) => {
   const interestFormula = req.body.formula;
   const installment = eval(interestFormula);
   res.json({ cuotaCalculada: installment });
+});
+
+// =========================================================================
+// 7. INYECCIÓN SQL - SQL Injection (CWE-89)
+// =========================================================================
+app.get('/api/v1/accounts/lookup', (req, res) => {
+  const accountNumber = req.query.account;
+  const query = `SELECT * FROM accounts WHERE account_number = '${accountNumber}'`;
+  
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
 });
 
 app.get('/health', (req, res) => {
