@@ -22,6 +22,7 @@ jobs:
       - uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
+          build-mode: none   # <-- Esto evita que busque compiladores y escanee tu JS puro
 
       - uses: github/codeql-action/analyze@v3
         with:
